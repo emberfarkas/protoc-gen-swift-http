@@ -12,14 +12,14 @@ public protocol {{.ServiceType}}ServiceProtocol: TheRouterServiceProtocol {
 
 public final class {{.ServiceType}}Service: NSObject, {{.ServiceType}}ServiceProtocol {
 {{- range .MethodSets}}
-	func {{.Name}}(req *{{.Request}}) async throws -> {{.Reply}} {
-	    let req = HTTPRequest {
+	func {{.Name}}(req {{.Request}}) async throws -> {{.Reply}} {
+	    let f = HTTPRequest {
             // Setup default params
             $0.url = URL(string: String(format: "{}{}", Global.BaseURL, "{{.Path}}"))
             $0.method = .{{.Method}}
             $0.timeout = 100
         }
-        let res = try await req.fetch()
+        let res = try await f.fetch()
 
         if let error = res.error {
             throw error // dispatch any error coming from fetch outside the decode.

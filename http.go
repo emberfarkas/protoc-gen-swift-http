@@ -54,13 +54,14 @@ func generateFileContent(gen *protogen.Plugin, file *protogen.File, g *protogen.
 	if len(file.Services) == 0 {
 		return
 	}
+	packageName := underlineCaseVars(string(file.Desc.Package()))
 
 	for _, service := range file.Services {
-		genService(gen, file, g, service, omitempty, omitemptyPrefix)
+		genService(gen, file, g, service, omitempty, omitemptyPrefix, packageName)
 	}
 }
 
-func genService(_ *protogen.Plugin, file *protogen.File, g *protogen.GeneratedFile, service *protogen.Service, omitempty bool, omitemptyPrefix string) {
+func genService(_ *protogen.Plugin, file *protogen.File, g *protogen.GeneratedFile, service *protogen.Service, omitempty bool, omitemptyPrefix string, packageName string) {
 	if service.Desc.Options().(*descriptorpb.ServiceOptions).GetDeprecated() {
 		g.P("//")
 		g.P(deprecationComment)
@@ -78,12 +79,12 @@ func genService(_ *protogen.Plugin, file *protogen.File, g *protogen.GeneratedFi
 		rule, ok := proto.GetExtension(method.Desc.Options(), annotations.E_Http).(*annotations.HttpRule)
 		if rule != nil && ok {
 			for _, bind := range rule.AdditionalBindings {
-				sd.Methods = append(sd.Methods, buildHTTPRule(g, file, service, method, bind, omitemptyPrefix))
+				sd.Methods = append(sd.Methods, buildHTTPRule(g, service, method, bind, omitemptyPrefix, packageName))
 			}
-			sd.Methods = append(sd.Methods, buildHTTPRule(g, file, service, method, rule, omitemptyPrefix))
+			sd.Methods = append(sd.Methods, buildHTTPRule(g, service, method, rule, omitemptyPrefix, packageName))
 		} else if !omitempty {
 			path := fmt.Sprintf("%s/%s/%s", omitemptyPrefix, service.Desc.FullName(), method.Desc.Name())
-			sd.Methods = append(sd.Methods, buildMethodDesc(g, file, service, method, http.MethodPost, path))
+			sd.Methods = append(sd.Methods, buildMethodDesc(g, service, method, http.MethodPost, path, packageName))
 		}
 	}
 	if len(sd.Methods) != 0 {
@@ -106,7 +107,7 @@ func hasHTTPRule(services []*protogen.Service) bool {
 	return false
 }
 
-func buildHTTPRule(g *protogen.GeneratedFile, file *protogen.File, service *protogen.Service, m *protogen.Method, rule *annotations.HttpRule, omitemptyPrefix string) *methodDesc {
+func buildHTTPRule(g *protogen.GeneratedFile, service *protogen.Service, m *protogen.Method, rule *annotations.HttpRule, omitemptyPrefix string, packageName string) *methodDesc {
 	var (
 		path         string
 		method       string
@@ -142,7 +143,7 @@ func buildHTTPRule(g *protogen.GeneratedFile, file *protogen.File, service *prot
 	}
 	body = rule.Body
 	responseBody = rule.ResponseBody
-	md := buildMethodDesc(g, file, service, m, method, path)
+	md := buildMethodDesc(g, service, m, method, path, packageName)
 	if method == http.MethodGet || method == http.MethodDelete {
 		if body != "" {
 			_, _ = fmt.Fprintf(os.Stderr, "\u001B[31mWARN\u001B[m: %s %s body should not be declared.\n", method, path)
@@ -170,7 +171,7 @@ func buildHTTPRule(g *protogen.GeneratedFile, file *protogen.File, service *prot
 	return md
 }
 
-func buildMethodDesc(g *protogen.GeneratedFile, file *protogen.File, service *protogen.Service, m *protogen.Method, method, path string) *methodDesc {
+func buildMethodDesc(g *protogen.GeneratedFile, service *protogen.Service, m *protogen.Method, method, path string, packageName string) *methodDesc {
 	defer func() { methodSets[m.GoName]++ }()
 
 	vars := buildPathVars(path)
@@ -207,11 +208,11 @@ func buildMethodDesc(g *protogen.GeneratedFile, file *protogen.File, service *pr
 		comment = "// " + m.GoName + strings.TrimPrefix(strings.TrimSuffix(comment, "\n"), "//")
 	}
 	return &methodDesc{
-		Name:         m.GoName,
+		Name:         camelCase(m.GoName),
 		OriginalName: string(m.Desc.Name()),
 		Num:          methodSets[m.GoName],
-		Request:      g.QualifiedGoIdent(m.Input.GoIdent),
-		Reply:        fmt.Sprintf("%s_%s_%s", file.Desc.Name(), service.GoName, g.QualifiedGoIdent(m.Output.GoIdent)),
+		Request:      fmt.Sprintf("%s_%s", packageName, g.QualifiedGoIdent(m.Input.GoIdent)),
+		Reply:        fmt.Sprintf("%s_%s", packageName, g.QualifiedGoIdent(m.Output.GoIdent)),
 		Comment:      comment,
 		Path:         path,
 		Method:       method,
@@ -258,6 +259,15 @@ func camelCaseVars(s string) string {
 		vars = append(vars, camelCase(sub))
 	}
 	return strings.Join(vars, ".")
+}
+
+func underlineCaseVars(s string) string {
+	subs := strings.Split(s, ".")
+	vars := make([]string, 0, len(subs))
+	for _, sub := range subs {
+		vars = append(vars, camelCase(sub))
+	}
+	return strings.Join(vars, "_")
 }
 
 // camelCase returns the CamelCased name.
