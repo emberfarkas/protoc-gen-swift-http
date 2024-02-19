@@ -27,14 +27,13 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/go-bamboo/protoc-gen-swift-http/internal/genid"
+	"github.com/go-bamboo/protoc-gen-swift-http/internal/strs"
 	"google.golang.org/protobuf/encoding/prototext"
-	"google.golang.org/protobuf/internal/genid"
-	"google.golang.org/protobuf/internal/strs"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protodesc"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/reflect/protoregistry"
-
 	"google.golang.org/protobuf/types/descriptorpb"
 	"google.golang.org/protobuf/types/dynamicpb"
 	"google.golang.org/protobuf/types/pluginpb"
