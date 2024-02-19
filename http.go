@@ -7,14 +7,17 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/go-bamboo/protoc-gen-swift-http/protogen"
+	"github.com/go-bamboo/protoc-gen-swift-http/internal/strs"
 	"google.golang.org/genproto/googleapis/api/annotations"
+	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
 )
 
 var methodSets = make(map[string]int)
+var packageNames = map[protogen.GoImportPath]protogen.GoPackageName{}
+var usedPackageNames = map[protogen.GoPackageName]bool{}
 
 // generateFile generates a _http.pb.go file containing kratos errors definitions.
 func generateFile(gen *protogen.Plugin, file *protogen.File, omitempty bool, omitemptyPrefix string) *protogen.GeneratedFile {
@@ -205,8 +208,8 @@ func buildMethodDesc(g *protogen.GeneratedFile, file *protogen.File, service *pr
 		Name:         camelCase(m.GoName),
 		OriginalName: string(m.Desc.Name()),
 		Num:          methodSets[m.GoName],
-		Request:      g.QualifiedGoIdent(m.Input.GoIdent),
-		Reply:        g.QualifiedGoIdent(m.Output.GoIdent),
+		Request:      QualifiedGoIdent(m.Input.GoIdent),
+		Reply:        QualifiedGoIdent(m.Output.GoIdent),
 		Comment:      comment,
 		Path:         path,
 		Method:       method,
@@ -334,3 +337,31 @@ func protocVersion(gen *protogen.Plugin) string {
 }
 
 const deprecationComment = "// Deprecated: Do not use."
+
+func QualifiedGoIdent(ident protogen.GoIdent) string {
+	if packageName, ok := packageNames[ident.GoImportPath]; ok {
+		return string(packageName) + "_" + ident.GoName
+	}
+	var packageName protogen.GoPackageName
+	var dir = strings.Split(string(ident.GoImportPath), "/")
+	var name string
+	for i := len(dir); i > 0; i-- {
+		name = dir[i-1]
+		if name == "api" {
+			break
+		}
+		if len(packageName) == 0 {
+			packageName = protogen.GoPackageName(camelCase(name))
+		} else {
+			packageName = protogen.GoPackageName(strings.Join([]string{camelCase(name), string(packageName)}, "_"))
+		}
+	}
+	packageNames[ident.GoImportPath] = packageName
+	usedPackageNames[packageName] = true
+	return string(packageName) + "_" + ident.GoName
+}
+
+// cleanPackageName converts a string to a valid Go package name.
+func cleanPackageName(name string) protogen.GoPackageName {
+	return protogen.GoPackageName(strs.GoSanitized(name))
+}
