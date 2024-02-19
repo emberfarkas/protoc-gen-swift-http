@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 
-	"google.golang.org/protobuf/compiler/protogen"
+	"github.com/go-bamboo/protoc-gen-swift-http/protogen"
 	"google.golang.org/protobuf/types/pluginpb"
 )
 

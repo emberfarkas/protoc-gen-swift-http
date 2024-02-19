@@ -7,8 +7,8 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/go-bamboo/protoc-gen-swift-http/protogen"
 	"google.golang.org/genproto/googleapis/api/annotations"
-	"google.golang.org/protobuf/compiler/protogen"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
 	"google.golang.org/protobuf/types/descriptorpb"
@@ -73,12 +73,12 @@ func genService(_ *protogen.Plugin, file *protogen.File, g *protogen.GeneratedFi
 		rule, ok := proto.GetExtension(method.Desc.Options(), annotations.E_Http).(*annotations.HttpRule)
 		if rule != nil && ok {
 			for _, bind := range rule.AdditionalBindings {
-				sd.Methods = append(sd.Methods, buildHTTPRule(g, service, method, bind, omitemptyPrefix, packageName))
+				sd.Methods = append(sd.Methods, buildHTTPRule(g, file, service, method, bind, omitemptyPrefix, packageName))
 			}
-			sd.Methods = append(sd.Methods, buildHTTPRule(g, service, method, rule, omitemptyPrefix, packageName))
+			sd.Methods = append(sd.Methods, buildHTTPRule(g, file, service, method, rule, omitemptyPrefix, packageName))
 		} else if !omitempty {
 			path := fmt.Sprintf("%s/%s/%s", omitemptyPrefix, service.Desc.FullName(), method.Desc.Name())
-			sd.Methods = append(sd.Methods, buildMethodDesc(g, service, method, http.MethodPost, path, packageName))
+			sd.Methods = append(sd.Methods, buildMethodDesc(g, file, service, method, http.MethodPost, path, packageName))
 		}
 	}
 	if len(sd.Methods) != 0 {
@@ -101,7 +101,7 @@ func hasHTTPRule(services []*protogen.Service) bool {
 	return false
 }
 
-func buildHTTPRule(g *protogen.GeneratedFile, service *protogen.Service, m *protogen.Method, rule *annotations.HttpRule, omitemptyPrefix string, packageName string) *methodDesc {
+func buildHTTPRule(g *protogen.GeneratedFile, file *protogen.File, service *protogen.Service, m *protogen.Method, rule *annotations.HttpRule, omitemptyPrefix string, packageName string) *methodDesc {
 	var (
 		path         string
 		method       string
@@ -137,7 +137,7 @@ func buildHTTPRule(g *protogen.GeneratedFile, service *protogen.Service, m *prot
 	}
 	body = rule.Body
 	responseBody = rule.ResponseBody
-	md := buildMethodDesc(g, service, m, method, path, packageName)
+	md := buildMethodDesc(g, file, service, m, method, path, packageName)
 	if method == http.MethodGet || method == http.MethodDelete {
 		if body != "" {
 			_, _ = fmt.Fprintf(os.Stderr, "\u001B[31mWARN\u001B[m: %s %s body should not be declared.\n", method, path)
@@ -165,7 +165,7 @@ func buildHTTPRule(g *protogen.GeneratedFile, service *protogen.Service, m *prot
 	return md
 }
 
-func buildMethodDesc(g *protogen.GeneratedFile, service *protogen.Service, m *protogen.Method, method, path string, packageName string) *methodDesc {
+func buildMethodDesc(g *protogen.GeneratedFile, file *protogen.File, service *protogen.Service, m *protogen.Method, method, path string, packageName string) *methodDesc {
 	defer func() { methodSets[m.GoName]++ }()
 
 	vars := buildPathVars(path)
@@ -205,8 +205,8 @@ func buildMethodDesc(g *protogen.GeneratedFile, service *protogen.Service, m *pr
 		Name:         camelCase(m.GoName),
 		OriginalName: string(m.Desc.Name()),
 		Num:          methodSets[m.GoName],
-		Request:      fmt.Sprintf("%s_%s", packageName, g.QualifiedGoIdent(m.Input.GoIdent)),
-		Reply:        fmt.Sprintf("%s_%s", packageName, g.QualifiedGoIdent(m.Output.GoIdent)),
+		Request:      g.QualifiedGoIdent(m.Input.GoIdent),
+		Reply:        g.QualifiedGoIdent(m.Output.GoIdent),
 		Comment:      comment,
 		Path:         path,
 		Method:       method,
