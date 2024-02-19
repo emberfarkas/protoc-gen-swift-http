@@ -348,7 +348,9 @@ func QualifiedGoIdent(ident protogen.GoIdent) string {
 	for i := len(dir); i > 0; i-- {
 		name = dir[i-1]
 		if name == "api" {
-			break
+			if dir[i-2] == "go-bamboo" {
+				break
+			}
 		}
 		if len(packageName) == 0 {
 			packageName = protogen.GoPackageName(camelCase(name))
