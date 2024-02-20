@@ -204,7 +204,7 @@ func buildMethodDesc(g *protogen.GeneratedFile, file *protogen.File, service *pr
 		comment = "// " + m.GoName + strings.TrimPrefix(strings.TrimSuffix(comment, "\n"), "//")
 	}
 	return &methodDesc{
-		Name:         camelCase(m.GoName),
+		Name:         lowerFirst(camelCase(m.GoName)),
 		OriginalName: string(m.Desc.Name()),
 		Num:          methodSets[m.GoName],
 		Request:      QualifiedGoIdent(m.Input.GoIdent),
@@ -365,4 +365,12 @@ func QualifiedGoIdent(ident protogen.GoIdent) string {
 // cleanPackageName converts a string to a valid Go package name.
 func cleanPackageName(name string) protogen.GoPackageName {
 	return protogen.GoPackageName(strs.GoSanitized(name))
+}
+
+func lowerFirst(s string) string {
+	if len(s) > 1 {
+		return strings.ToLower(s[0:1]) + s[1:]
+	} else {
+		return strings.ToLower(s)
+	}
 }
