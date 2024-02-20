@@ -46,19 +46,18 @@ func generateFile(gen *protogen.Plugin, file *protogen.File, omitempty bool, omi
 	return g
 }
 
-// generateFileContent generates the kratos errors definitions, excluding the package statement.
+// generateFileContent generates the real http definitions, excluding the package statement.
 func generateFileContent(gen *protogen.Plugin, file *protogen.File, g *protogen.GeneratedFile, omitempty bool, omitemptyPrefix string) {
 	if len(file.Services) == 0 {
 		return
 	}
-	packageName := underlineCaseVars(string(file.Desc.Package()))
 
 	for _, service := range file.Services {
-		genService(gen, file, g, service, omitempty, omitemptyPrefix, packageName)
+		genService(gen, file, g, service, omitempty, omitemptyPrefix)
 	}
 }
 
-func genService(_ *protogen.Plugin, file *protogen.File, g *protogen.GeneratedFile, service *protogen.Service, omitempty bool, omitemptyPrefix string, packageName string) {
+func genService(_ *protogen.Plugin, file *protogen.File, g *protogen.GeneratedFile, service *protogen.Service, omitempty bool, omitemptyPrefix string) {
 	if service.Desc.Options().(*descriptorpb.ServiceOptions).GetDeprecated() {
 		g.P("//")
 		g.P(deprecationComment)
@@ -76,12 +75,12 @@ func genService(_ *protogen.Plugin, file *protogen.File, g *protogen.GeneratedFi
 		rule, ok := proto.GetExtension(method.Desc.Options(), annotations.E_Http).(*annotations.HttpRule)
 		if rule != nil && ok {
 			for _, bind := range rule.AdditionalBindings {
-				sd.Methods = append(sd.Methods, buildHTTPRule(g, file, service, method, bind, omitemptyPrefix, packageName))
+				sd.Methods = append(sd.Methods, buildHTTPRule(g, file, service, method, bind, omitemptyPrefix))
 			}
-			sd.Methods = append(sd.Methods, buildHTTPRule(g, file, service, method, rule, omitemptyPrefix, packageName))
+			sd.Methods = append(sd.Methods, buildHTTPRule(g, file, service, method, rule, omitemptyPrefix))
 		} else if !omitempty {
 			path := fmt.Sprintf("%s/%s/%s", omitemptyPrefix, service.Desc.FullName(), method.Desc.Name())
-			sd.Methods = append(sd.Methods, buildMethodDesc(g, file, service, method, http.MethodPost, path, packageName))
+			sd.Methods = append(sd.Methods, buildMethodDesc(g, file, service, method, http.MethodPost, path))
 		}
 	}
 	if len(sd.Methods) != 0 {
@@ -104,7 +103,7 @@ func hasHTTPRule(services []*protogen.Service) bool {
 	return false
 }
 
-func buildHTTPRule(g *protogen.GeneratedFile, file *protogen.File, service *protogen.Service, m *protogen.Method, rule *annotations.HttpRule, omitemptyPrefix string, packageName string) *methodDesc {
+func buildHTTPRule(g *protogen.GeneratedFile, file *protogen.File, service *protogen.Service, m *protogen.Method, rule *annotations.HttpRule, omitemptyPrefix string) *methodDesc {
 	var (
 		path         string
 		method       string
@@ -140,7 +139,7 @@ func buildHTTPRule(g *protogen.GeneratedFile, file *protogen.File, service *prot
 	}
 	body = rule.Body
 	responseBody = rule.ResponseBody
-	md := buildMethodDesc(g, file, service, m, method, path, packageName)
+	md := buildMethodDesc(g, file, service, m, method, path)
 	if method == http.MethodGet || method == http.MethodDelete {
 		if body != "" {
 			_, _ = fmt.Fprintf(os.Stderr, "\u001B[31mWARN\u001B[m: %s %s body should not be declared.\n", method, path)
@@ -168,7 +167,7 @@ func buildHTTPRule(g *protogen.GeneratedFile, file *protogen.File, service *prot
 	return md
 }
 
-func buildMethodDesc(g *protogen.GeneratedFile, file *protogen.File, service *protogen.Service, m *protogen.Method, method, path string, packageName string) *methodDesc {
+func buildMethodDesc(g *protogen.GeneratedFile, file *protogen.File, service *protogen.Service, m *protogen.Method, method, path string) *methodDesc {
 	defer func() { methodSets[m.GoName]++ }()
 
 	vars := buildPathVars(path)
