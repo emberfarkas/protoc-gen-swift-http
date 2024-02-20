@@ -16,7 +16,6 @@ public final class {{.ServiceType}}Service: NSObject, {{.ServiceType}}ServicePro
     }
 
     private let logger = Logger(label: #file)
-    private let baseURL = ""
 
     // Optional
     func reset() {
@@ -25,11 +24,18 @@ public final class {{.ServiceType}}Service: NSObject, {{.ServiceType}}ServicePro
 
 {{- range .MethodSets}}
 	public func {{.Name}}(req :{{.Request}}) async throws -> {{.Reply}} {
-	    let f = HTTPRequest {
+	    let u = String(format: "\(baseURL){{.Path}}")
+	    let f = try HTTPRequest {
             // Setup default params
-            $0.url = URL(string: String(format: "{}{}", baseURL, "{{.Path}}"))
+            $0.url = URL(string: u)
             $0.method = .{{.Method}}
             $0.timeout = 100
+            {{- if ne .Method "get" }}
+            $0.body = try .data(req.jsonUTF8Data(), contentType: MIMEType.json)
+            {{- end }}
+            $0.headers = HTTPHeaders(headers: [
+                .authBearerToken(baseToken)
+            ])
         }
         let res = try await f.fetch()
 
