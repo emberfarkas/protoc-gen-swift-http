@@ -144,6 +144,11 @@ func buildHTTPRule(g *protogen.GeneratedFile, file *protogen.File, service *prot
 		if body != "" {
 			_, _ = fmt.Fprintf(os.Stderr, "\u001B[31mWARN\u001B[m: %s %s body should not be declared.\n", method, path)
 		}
+		// 添加查询key
+		for _, field := range m.Input.Fields {
+			name := lowerFirst(field.GoName)
+			md.Query[name] = name
+		}
 	} else {
 		if body == "" {
 			_, _ = fmt.Fprintf(os.Stderr, "\u001B[31mWARN\u001B[m: %s %s does not declare a body.\n", method, path)
@@ -213,6 +218,7 @@ func buildMethodDesc(g *protogen.GeneratedFile, file *protogen.File, service *pr
 		Path:         path,
 		Method:       method,
 		HasVars:      len(vars) > 0,
+		Query:        map[string]string{},
 	}
 }
 

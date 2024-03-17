@@ -30,16 +30,21 @@ public final class {{.ServiceType}}Service: NSObject, {{.ServiceType}}ServicePro
             $0.url = URL(string: u)
             $0.method = .{{.Method}}
             $0.timeout = 100
-            {{- if ne .Method "get" }}
-            $0.body = try .data(req.jsonUTF8Data(), contentType: MIMEType.json)
-            {{- end }}
             $0.headers = HTTPHeaders(headers: [
                 .authBearerToken(baseToken)
             ])
+            {{- if ne .Method "get" }}
+            $0.body = try .data(req.jsonUTF8Data(), contentType: MIMEType.json)
+            {{- else -}}
+            {{- range $key, $value := .Query}}
+            $0.addQueryParameter(name: "{{$key}}", value: "\(req.{{$value}})")
+            {{- end }}
+            {{- end }}
         }
         let res = try await f.fetch()
 
         if let error = res.error {
+            logger.error("statusCode: \(res.statusCode), data: \(res.data?.asString)", metadata: ["func": "\(#function)", "line": "\(#line)"])
             throw error // dispatch any error coming from fetch outside the decode.
         }
 
