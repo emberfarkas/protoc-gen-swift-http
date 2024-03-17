@@ -146,7 +146,7 @@ func buildHTTPRule(g *protogen.GeneratedFile, file *protogen.File, service *prot
 		}
 		// 添加查询key
 		for _, field := range m.Input.Fields {
-			name := lowerFirst(field.GoName)
+			name := varID(field.GoName)
 			md.Query[name] = name
 		}
 	} else {
@@ -379,4 +379,47 @@ func lowerFirst(s string) string {
 	} else {
 		return strings.ToLower(s)
 	}
+}
+
+func varID(s string) string {
+	i := 0
+	var segs []string
+	seg := make([]byte, 0, 32)
+	for ; i < len(s); i++ {
+		c := s[i]
+		if !isASCIILower(c) {
+			if len(seg) > 0 {
+				segs = append(segs, string(seg))
+			}
+			seg = make([]byte, 0, 32)
+			seg = append(seg, c)
+			if i+1 < len(s) {
+				n := s[i+1]
+				if (c == 'i' || c == 'I') && (n == 'd' || n == 'D') {
+					seg = append(seg, n)
+					i++
+				}
+			}
+		} else {
+			seg = append(seg, c)
+		}
+		if i >= len(s)-1 {
+			segs = append(segs, string(seg))
+		}
+	}
+	var newSegs []string
+	newSegs = append(newSegs, strings.ToLower(segs[0]))
+	if len(segs) > 1 {
+		for i := 1; i < len(segs); i++ {
+			if strings.ToLower(segs[i]) == "id" {
+				newSegs = append(newSegs, "ID")
+			} else if strings.ToLower(segs[i]) == "url" {
+				newSegs = append(newSegs, "URL")
+			} else {
+				newSegs = append(newSegs, segs[i])
+			}
+		}
+	}
+	//fmt.Fprintf(os.Stderr, "-------------%v ========= %v \n", newSegs, s)
+	return strings.Join(newSegs, "")
 }
